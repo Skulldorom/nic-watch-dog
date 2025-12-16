@@ -89,7 +89,7 @@ while true; do
     if ping -c 1 -W 2 "$PING_TARGET_1" > /dev/null 2>&1 || ping -c 1 -W 2 "$PING_TARGET_2" > /dev/null 2>&1; then
         # Success - at least one target is reachable
         if [ $fails -gt 0 ]; then
-            logger -t nic-watchdog "✅ Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)"
+            logger -t nic-watchdog "Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)"
             send_discord "NIC Watchdog" "✅ Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)."
         fi
         fails=0
@@ -99,9 +99,9 @@ while true; do
         fails=$((fails+1))
         reboot_counter=$((reboot_counter+1))
         if [ $fails -lt $FAIL_THRESHOLD ]; then
-            logger -t nic-watchdog "⚠️ Warning: cannot reach $PING_TARGET_1 or $PING_TARGET_2 ($fails/$FAIL_THRESHOLD)"
+            logger -t nic-watchdog "Warning: cannot reach $PING_TARGET_1 or $PING_TARGET_2 ($fails/$FAIL_THRESHOLD)"
         else
-            logger -t nic-watchdog "❌ Restarting $NIC after $fails failed attempts"
+            logger -t nic-watchdog "Restarting $NIC after $fails failed attempts"
             ip link set "$NIC" down
             sleep 2
             ip link set "$NIC" up
@@ -110,7 +110,7 @@ while true; do
         fi
         # --- New: reboot if NIC still down after 10 minutes ---
         if [ $reboot_counter -ge $REBOOT_THRESHOLD ]; then
-            logger -t nic-watchdog "💥 NIC still down after 10 minutes, rebooting server"
+            logger -t nic-watchdog "CRITICAL: NIC still down after 10 minutes, rebooting server"
             send_discord "NIC Watchdog Critical" "💥 Server is rebooting because connectivity could not be restored after 10 minutes."
             reboot
         fi
