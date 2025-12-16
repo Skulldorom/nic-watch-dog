@@ -10,9 +10,12 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 REPO_URL="https://raw.githubusercontent.com/Skulldorom/nic-watch-dog/main/nic-watchdog.sh"
+UPDATE_SCRIPT_URL="https://raw.githubusercontent.com/Skulldorom/nic-watch-dog/main/update-watchdog.sh"
 INSTALL_PATH="/usr/local/bin/nic-watchdog"
+UPDATE_SCRIPT_PATH="/usr/local/bin/update-watchdog"
 SERVICE_NAME="nic-watchdog.service"
 TEMP_FILE="/tmp/nic-watchdog-update.sh"
+TEMP_UPDATE_SCRIPT="/tmp/update-watchdog-new.sh"
 SERVICE_START_WAIT=2
 
 echo -e "${YELLOW}NIC Watchdog Update Script${NC}"
@@ -113,4 +116,58 @@ if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
     echo
     echo "Service status:"
     systemctl status "$SERVICE_NAME" --no-pager -l
+fi
+
+# Update the update script itself
+# Temporarily disable 'set -e' so that failures in self-update don't cause script to exit
+set +e
+echo
+echo -e "${YELLOW}→ Updating update script itself...${NC}"
+
+# Download the latest update script
+DOWNLOAD_SUCCESS=false
+if command -v wget &> /dev/null; then
+    if wget -q -O "$TEMP_UPDATE_SCRIPT" "$UPDATE_SCRIPT_URL"; then
+        DOWNLOAD_SUCCESS=true
+    fi
+elif command -v curl &> /dev/null; then
+    if curl -sf -o "$TEMP_UPDATE_SCRIPT" "$UPDATE_SCRIPT_URL"; then
+        DOWNLOAD_SUCCESS=true
+    fi
+fi
+
+if [ "$DOWNLOAD_SUCCESS" = false ]; then
+    echo -e "${RED}Warning: Failed to download update script from GitHub${NC}"
+    echo -e "${YELLOW}The update script was not updated, but the watchdog was updated successfully${NC}"
+    rm -f "$TEMP_UPDATE_SCRIPT"
+    exit 0
+fi
+
+# Verify download was successful
+if [ ! -s "$TEMP_UPDATE_SCRIPT" ]; then
+    echo -e "${RED}Warning: Failed to download the latest update script${NC}"
+    echo -e "${YELLOW}The update script was not updated, but the watchdog was updated successfully${NC}"
+    rm -f "$TEMP_UPDATE_SCRIPT"
+    exit 0
+fi
+
+# Validate that it's a shell script
+if ! head -n 1 "$TEMP_UPDATE_SCRIPT" | grep -qE '^#!.*bash$'; then
+    echo -e "${RED}Warning: Downloaded update script is not a valid bash script${NC}"
+    echo -e "${YELLOW}The update script was not updated, but the watchdog was updated successfully${NC}"
+    rm -f "$TEMP_UPDATE_SCRIPT"
+    exit 0
+fi
+
+# Make it executable
+chmod +x "$TEMP_UPDATE_SCRIPT"
+
+# Install the new update script
+if [ -f "$UPDATE_SCRIPT_PATH" ]; then
+    mv "$TEMP_UPDATE_SCRIPT" "$UPDATE_SCRIPT_PATH"
+    echo -e "${GREEN}✓ Update script updated successfully!${NC}"
+else
+    echo -e "${YELLOW}→ Update script not installed at expected location ($UPDATE_SCRIPT_PATH)${NC}"
+    echo -e "${YELLOW}  Skipping update script self-update${NC}"
+    rm -f "$TEMP_UPDATE_SCRIPT"
 fi
