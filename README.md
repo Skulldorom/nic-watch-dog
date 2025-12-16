@@ -39,6 +39,34 @@ A network interface watchdog script for Linux servers (especially useful on Prox
    sudo mv nic-watchdog.sh /usr/local/bin/nic-watchdog
    ```
 
+## Updating
+
+To easily update the NIC Watchdog to the latest version, you can install the update script:
+
+1. **Download the update script:**
+   ```bash
+   wget https://raw.githubusercontent.com/Skulldorom/nic-watch-dog/main/update-watchdog.sh
+   # or
+   curl -O https://raw.githubusercontent.com/Skulldorom/nic-watch-dog/main/update-watchdog.sh
+   ```
+
+2. **Make it executable and install:**
+   ```bash
+   chmod +x update-watchdog.sh
+   sudo mv update-watchdog.sh /usr/local/bin/update-watchdog
+   ```
+
+3. **Run the update command from anywhere:**
+   ```bash
+   sudo update-watchdog
+   ```
+
+The update script will:
+- Download the latest version from GitHub
+- Backup the existing version
+- Install the new version to `/usr/local/bin/nic-watchdog`
+- Restart the service automatically if it's running
+
 ## Configuration
 
 You can configure the watchdog using either a `.env` file (recommended) or by editing the script directly.
