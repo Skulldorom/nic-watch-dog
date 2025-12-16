@@ -12,9 +12,21 @@ DISCORD_WEBHOOK="${DISCORD_WEBHOOK:-}"
 # Load configuration from .env file if it exists
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/.env" ]; then
-    # Source the .env file, ignoring comments and empty lines
+    # Safely load .env file by filtering only valid variable assignments
+    # This prevents arbitrary code execution and ignores comments/empty lines
     set -a
-    source "$SCRIPT_DIR/.env"
+    while IFS='=' read -r key value; do
+        # Skip empty lines and comments
+        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+        # Remove leading/trailing whitespace from key
+        key=$(echo "$key" | xargs)
+        # Only process lines with valid uppercase variable names
+        if [[ "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
+            # Remove potential trailing comments from value
+            value=$(echo "$value" | sed 's/#.*//')
+            export "$key=$value"
+        fi
+    done < "$SCRIPT_DIR/.env"
     set +a
 fi
 
