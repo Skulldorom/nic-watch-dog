@@ -18,8 +18,16 @@ TEMP_FILE="/tmp/nic-watchdog-update.sh"
 TEMP_UPDATE_FILE="/tmp/update-watchdog-install.sh"
 SERVICE_START_WAIT=2
 
-# Get the absolute path of the current script
-SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+# Get the absolute path of the current script (with fallback for portability)
+if command -v readlink &> /dev/null && readlink -f "${BASH_SOURCE[0]}" &> /dev/null; then
+    SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+elif command -v realpath &> /dev/null; then
+    SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
+else
+    # Fallback: get directory and append filename
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SCRIPT_PATH="${SCRIPT_DIR}/$(basename "${BASH_SOURCE[0]}")"
+fi
 
 echo -e "${YELLOW}NIC Watchdog Update Script${NC}"
 echo "================================"
@@ -37,36 +45,10 @@ if [ "$SCRIPT_PATH" != "$UPDATE_INSTALL_PATH" ]; then
     echo -e "${YELLOW}→ Update script is not installed in system path${NC}"
     echo -e "${YELLOW}→ Installing update-watchdog to ${UPDATE_INSTALL_PATH}...${NC}"
     
-    # Check if we need to download or copy local file
-    if [ -f "$SCRIPT_PATH" ]; then
-        # Copy the current script
-        cp "$SCRIPT_PATH" "$UPDATE_INSTALL_PATH"
-        chmod +x "$UPDATE_INSTALL_PATH"
-        echo -e "${GREEN}✓ Update script installed successfully!${NC}"
-    else
-        # Download from GitHub
-        echo -e "${YELLOW}→ Downloading update script from GitHub...${NC}"
-        if command -v wget &> /dev/null; then
-            if ! wget -q -O "$TEMP_UPDATE_FILE" "$UPDATE_SCRIPT_URL"; then
-                echo -e "${RED}Error: Failed to download update script from GitHub${NC}"
-                rm -f "$TEMP_UPDATE_FILE"
-                exit 1
-            fi
-        elif command -v curl &> /dev/null; then
-            if ! curl -sf -o "$TEMP_UPDATE_FILE" "$UPDATE_SCRIPT_URL"; then
-                echo -e "${RED}Error: Failed to download update script from GitHub${NC}"
-                rm -f "$TEMP_UPDATE_FILE"
-                exit 1
-            fi
-        else
-            echo -e "${RED}Error: Neither wget nor curl is installed${NC}"
-            exit 1
-        fi
-        
-        chmod +x "$TEMP_UPDATE_FILE"
-        mv "$TEMP_UPDATE_FILE" "$UPDATE_INSTALL_PATH"
-        echo -e "${GREEN}✓ Update script installed successfully!${NC}"
-    fi
+    # Copy the current script to the install path
+    cp "$SCRIPT_PATH" "$UPDATE_INSTALL_PATH"
+    chmod +x "$UPDATE_INSTALL_PATH"
+    echo -e "${GREEN}✓ Update script installed successfully!${NC}"
     
     echo -e "${GREEN}→ Now you can run 'sudo update-watchdog' from anywhere${NC}"
     echo -e "${YELLOW}→ Re-running from installed location...${NC}"
