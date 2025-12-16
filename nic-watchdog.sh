@@ -24,8 +24,8 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
             value="${BASH_REMATCH[2]}"
             # Remove inline comments (not within quotes)
             value=$(echo "$value" | sed 's/[[:space:]]*#.*//')
-            # Trim trailing whitespace
-            value="${value%%+([[:space:]])}"
+            # Trim trailing whitespace using parameter expansion
+            value="${value%"${value##*[![:space:]]}"}"
             export "$key=$value"
         fi
     done < "$SCRIPT_DIR/.env"
