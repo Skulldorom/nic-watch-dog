@@ -1,12 +1,22 @@
 #!/bin/bash
 # nic-watchdog.sh - auto recover NIC if it hangs & alert via Discord webhook
-NIC="eth0"
-PING_TARGET_1="8.8.8.8"         # Google DNS
-PING_TARGET_2="1.1.1.1"         # Cloudflare DNS
-FAIL_THRESHOLD=3
-SLEEP_INTERVAL=30
-# ==== CHANGE THIS: Put your Discord webhook here ====
-DISCORD_WEBHOOK=""
+
+# Default configuration values
+NIC="${NIC:-eth0}"
+PING_TARGET_1="${PING_TARGET_1:-8.8.8.8}"         # Google DNS
+PING_TARGET_2="${PING_TARGET_2:-1.1.1.1}"         # Cloudflare DNS
+FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
+SLEEP_INTERVAL="${SLEEP_INTERVAL:-30}"
+DISCORD_WEBHOOK="${DISCORD_WEBHOOK:-}"
+
+# Load configuration from .env file if it exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # Source the .env file, ignoring comments and empty lines
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
 
 send_discord() {
     local subject="$1"

@@ -41,15 +41,44 @@ A network interface watchdog script for Linux servers (especially useful on Prox
 
 ## Configuration
 
-Edit the script to configure the following variables at the top of the file:
+You can configure the watchdog using either a `.env` file (recommended) or by editing the script directly.
+
+### Option 1: Using a .env file (Recommended)
+
+1. **Copy the example configuration file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit the `.env` file with your settings:**
+   ```bash
+   nano .env
+   # Or use your preferred editor: vi, vim, etc.
+   ```
+
+3. **Configure the following variables:**
+   ```bash
+   NIC=eth0                      # Network interface to monitor (e.g., eth0, enp0s3)
+   PING_TARGET_1=8.8.8.8         # First ping target (Google DNS)
+   PING_TARGET_2=1.1.1.1         # Second ping target (Cloudflare DNS)
+   FAIL_THRESHOLD=3              # Number of consecutive failures before restarting NIC
+   SLEEP_INTERVAL=30             # Seconds between connectivity checks
+   DISCORD_WEBHOOK=              # Your Discord webhook URL (optional)
+   ```
+
+The `.env` file is ignored by git, so your configuration won't be committed to the repository.
+
+### Option 2: Edit the script directly
+
+If you prefer not to use a `.env` file, you can edit the default values at the top of the `nic-watchdog.sh` script:
 
 ```bash
-NIC="eth0"                      # Network interface to monitor (e.g., eth0, enp0s3)
-PING_TARGET_1="8.8.8.8"         # First ping target (Google DNS)
-PING_TARGET_2="1.1.1.1"         # Second ping target (Cloudflare DNS)
-FAIL_THRESHOLD=3                # Number of consecutive failures before restarting NIC
-SLEEP_INTERVAL=30               # Seconds between connectivity checks
-DISCORD_WEBHOOK=""              # Your Discord webhook URL (optional)
+NIC="${NIC:-eth0}"
+PING_TARGET_1="${PING_TARGET_1:-8.8.8.8}"
+PING_TARGET_2="${PING_TARGET_2:-1.1.1.1}"
+FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
+SLEEP_INTERVAL="${SLEEP_INTERVAL:-30}"
+DISCORD_WEBHOOK="${DISCORD_WEBHOOK:-}"
 ```
 
 ### Finding Your Network Interface Name
