@@ -74,6 +74,14 @@ fi
 echo -e "${YELLOW}→ Making script executable...${NC}"
 chmod +x "$TEMP_FILE"
 
+# Backup existing version if it exists
+BACKUP_PATH=""
+if [ -f "$INSTALL_PATH" ]; then
+    BACKUP_PATH="${INSTALL_PATH}.backup"
+    echo -e "${YELLOW}→ Creating backup at ${BACKUP_PATH}...${NC}"
+    cp "$INSTALL_PATH" "$BACKUP_PATH"
+fi
+
 # Install the new version
 echo -e "${YELLOW}→ Installing to ${INSTALL_PATH}...${NC}"
 mv "$TEMP_FILE" "$INSTALL_PATH"
@@ -108,6 +116,13 @@ fi
 
 echo
 echo -e "${GREEN}✓ NIC Watchdog updated successfully!${NC}"
+
+# Clean up backup file after successful update
+if [ -n "$BACKUP_PATH" ] && [ -f "$BACKUP_PATH" ]; then
+    echo -e "${YELLOW}→ Cleaning up backup file...${NC}"
+    rm -f "$BACKUP_PATH"
+fi
+
 echo
 echo "Current version installed at: $INSTALL_PATH"
 
