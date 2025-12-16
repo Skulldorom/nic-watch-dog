@@ -37,9 +37,17 @@ fi
 # Download the latest version
 echo -e "${YELLOW}→ Downloading latest version from GitHub...${NC}"
 if command -v wget &> /dev/null; then
-    wget -q -O "$TEMP_FILE" "$REPO_URL"
+    if ! wget -q -O "$TEMP_FILE" "$REPO_URL"; then
+        echo -e "${RED}Error: Failed to download from GitHub${NC}"
+        rm -f "$TEMP_FILE"
+        exit 1
+    fi
 elif command -v curl &> /dev/null; then
-    curl -s -o "$TEMP_FILE" "$REPO_URL"
+    if ! curl -sf -o "$TEMP_FILE" "$REPO_URL"; then
+        echo -e "${RED}Error: Failed to download from GitHub${NC}"
+        rm -f "$TEMP_FILE"
+        exit 1
+    fi
 else
     echo -e "${RED}Error: Neither wget nor curl is installed${NC}"
     exit 1
@@ -53,7 +61,7 @@ if [ ! -s "$TEMP_FILE" ]; then
 fi
 
 # Validate that it's a shell script
-if ! head -n 1 "$TEMP_FILE" | grep -q '^#!/bin/bash'; then
+if ! head -n 1 "$TEMP_FILE" | grep -q '^#!/.*bash'; then
     echo -e "${RED}Error: Downloaded file is not a valid bash script${NC}"
     rm -f "$TEMP_FILE"
     exit 1
@@ -89,10 +97,16 @@ if [ "$SERVICE_RUNNING" = true ]; then
             systemctl start "$SERVICE_NAME"
             sleep "$SERVICE_START_WAIT"
             if systemctl is-active --quiet "$SERVICE_NAME"; then
-                echo -e "${YELLOW}→ Previous version restored and service restarted${NC}"
+                echo -e "${YELLOW}✓ Previous version restored and service restarted successfully${NC}"
+                echo -e "${RED}Update failed due to new version issues. Check logs with: journalctl -u ${SERVICE_NAME}${NC}"
+            else
+                echo -e "${RED}✗ Critical: Rollback failed! Service could not be restarted with previous version${NC}"
+                echo -e "${RED}Manual intervention required. Check logs with: journalctl -u ${SERVICE_NAME}${NC}"
             fi
+        else
+            echo -e "${RED}✗ No backup available to rollback${NC}"
+            echo -e "${RED}Manual intervention required. Check logs with: journalctl -u ${SERVICE_NAME}${NC}"
         fi
-        echo -e "${RED}Update failed. Check logs with: journalctl -u ${SERVICE_NAME}${NC}"
         exit 1
     fi
 fi
