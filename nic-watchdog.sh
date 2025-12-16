@@ -15,15 +15,17 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     # Safely load .env file by filtering only valid variable assignments
     # This prevents arbitrary code execution and ignores comments/empty lines
     set -a
-    while IFS='=' read -r key value; do
+    while IFS= read -r line || [ -n "$line" ]; do
         # Skip empty lines and comments
-        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
-        # Remove leading/trailing whitespace from key
-        key=$(echo "$key" | xargs)
-        # Only process lines with valid uppercase variable names
-        if [[ "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
-            # Remove potential trailing comments from value
-            value=$(echo "$value" | sed 's/#.*//')
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        # Extract key and value (handle '=' in value by taking only first '=')
+        if [[ "$line" =~ ^([A-Z_][A-Z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            value="${BASH_REMATCH[2]}"
+            # Remove inline comments (not within quotes)
+            value=$(echo "$value" | sed 's/[[:space:]]*#.*//')
+            # Trim trailing whitespace
+            value="${value%%+([[:space:]])}"
             export "$key=$value"
         fi
     done < "$SCRIPT_DIR/.env"
