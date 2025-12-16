@@ -79,7 +79,11 @@ BACKUP_PATH=""
 if [ -f "$INSTALL_PATH" ]; then
     BACKUP_PATH="${INSTALL_PATH}.backup"
     echo -e "${YELLOW}→ Creating backup at ${BACKUP_PATH}...${NC}"
-    cp "$INSTALL_PATH" "$BACKUP_PATH"
+    if ! cp "$INSTALL_PATH" "$BACKUP_PATH"; then
+        echo -e "${RED}Error: Failed to create backup${NC}"
+        rm -f "$TEMP_FILE"
+        exit 1
+    fi
 fi
 
 # Install the new version
@@ -120,7 +124,10 @@ echo -e "${GREEN}✓ NIC Watchdog updated successfully!${NC}"
 # Clean up backup file after successful update
 if [ -n "$BACKUP_PATH" ] && [ -f "$BACKUP_PATH" ]; then
     echo -e "${YELLOW}→ Cleaning up backup file...${NC}"
-    rm -f "$BACKUP_PATH"
+    if ! rm -f "$BACKUP_PATH"; then
+        echo -e "${RED}Warning: Failed to remove backup file at ${BACKUP_PATH}${NC}"
+        echo -e "${YELLOW}You may want to manually remove it later${NC}"
+    fi
 fi
 
 echo
