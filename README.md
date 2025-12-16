@@ -66,6 +66,7 @@ The update script will:
 - Backup the existing version
 - Install the new version to `/usr/local/bin/nic-watchdog`
 - Restart the service automatically if it's running
+- Update itself to the latest version (so you always have the newest update script)
 
 ## Configuration
 
