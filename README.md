@@ -6,7 +6,7 @@ A network interface watchdog script for Linux servers (especially useful on Prox
 
 - 🔍 **Dual Ping Target Monitoring**: Tests connectivity against two configurable targets (default: Google DNS and Cloudflare DNS)
 - 🔄 **Automatic NIC Recovery**: Automatically restarts the network interface after multiple consecutive failures
-- 🚨 **Discord Notifications**: Optional Discord webhook integration for alerts
+- 🚨 **Discord Notifications**: Optional Discord webhook integration for alerts (includes service start notification)
 - 🧪 **Test Mode**: Built-in test mode to verify configuration before deployment
 - ⏱️ **Configurable Thresholds**: Customize failure counts, check intervals, and timeout values
 - 💥 **Server Reboot Protection**: Automatically reboots the server if connectivity cannot be restored after 10 minutes
@@ -218,6 +218,18 @@ sudo chmod +x /usr/local/bin/nic-watchdog-wrapper.sh
 ### Connectivity Check Logic
 
 The script considers connectivity **successful** if **at least one** of the two ping targets responds. This provides redundancy - if one target is temporarily down, the script won't falsely trigger a NIC restart.
+
+### Discord Notifications
+
+When a Discord webhook is configured, the script sends notifications for the following events:
+
+- 🟢 **Service Started** (Green): Sent when the watchdog service starts monitoring
+- ⚠️ **NIC Restarted** (Orange): Sent when the network interface is restarted due to connectivity failures
+- ✅ **Connectivity Restored** (Green): Sent when connectivity is recovered after failures
+- 💥 **Critical: Server Rebooting** (Default): Sent when the server is about to reboot due to prolonged connectivity issues
+- 🔵 **Test Notifications** (Blue): Sent when using `--test` mode
+
+All log entries are also written to the system journal and can be viewed with `journalctl -t nic-watchdog`.
 
 ## Troubleshooting
 
