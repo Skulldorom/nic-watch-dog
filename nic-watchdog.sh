@@ -36,11 +36,16 @@ send_discord() {
     local subject="$1"
     local message="$2"
 
+    # Skip if Discord webhook is not configured
+    [ -z "$DISCORD_WEBHOOK" ] && return 0
+
     # Optional: pick a color based on subject/content
     # Default grey
     local color=10066329   # 0x999999
     if [[ "$subject" == *"Test"* ]]; then
         color=255          # 0x0000FF (blue)
+    elif [[ "$subject" == *"Started"* ]]; then
+        color=65280        # 0x00FF00 (green)
     elif [[ "$message" == *"Connectivity restored"* ]]; then
         color=65280        # 0x00FF00 (green)
     elif [[ "$message" == *"restarted"* ]]; then
@@ -107,6 +112,7 @@ if [ "$1" == "--test" ]; then
 fi
 
 logger -t nic-watchdog "Starting NIC watchdog for $NIC (targets: $PING_TARGET_1, $PING_TARGET_2)"
+send_discord "NIC Watchdog Started" "🟢 NIC Watchdog service has started monitoring '$NIC' (targets: $PING_TARGET_1, $PING_TARGET_2)."
 
 while true; do
     # Check if at least one ping target is reachable
