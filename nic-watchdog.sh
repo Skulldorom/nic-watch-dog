@@ -1,7 +1,8 @@
 #!/bin/bash
 # nic-watchdog.sh - auto recover NIC if it hangs & alert via Discord webhook
 NIC="eth0"
-PING_TARGET="192.168.0.1"
+PING_TARGET_1="8.8.8.8"         # Google DNS
+PING_TARGET_2="1.1.1.1"         # Cloudflare DNS
 FAIL_THRESHOLD=3
 SLEEP_INTERVAL=30
 # ==== CHANGE THIS: Put your Discord webhook here ====
@@ -50,56 +51,67 @@ REBOOT_THRESHOLD=$((600 / SLEEP_INTERVAL))  # 10 minutes worth of checks
 if [ "$1" == "--test" ]; then
     logger -t nic-watchdog "Manual test triggered, testing NIC $NIC and sending Discord notification"
 
-    if ping -I "$NIC" -c 1 -W 2 "$PING_TARGET" > /dev/null 2>&1; then
-        logger -t nic-watchdog "Test: NIC $NIC can reach $PING_TARGET"
-        send_discord "NIC Watchdog Test" "✅ Test OK: NIC '$NIC' can reach $PING_TARGET."
+    # Check if NIC interface is up
+    if ! ip link show "$NIC" | grep -q "state UP"; then
+        logger -t nic-watchdog "Test: NIC $NIC is DOWN"
+        send_discord "NIC Watchdog Test" "❌ Test: NIC '$NIC' interface is DOWN."
+        exit 1
+    fi
+
+    # Test connectivity to both targets
+    if ping -c 1 -W 2 "$PING_TARGET_1" > /dev/null 2>&1 || ping -c 1 -W 2 "$PING_TARGET_2" > /dev/null 2>&1; then
+        logger -t nic-watchdog "Test: Can reach ping targets ($PING_TARGET_1 or $PING_TARGET_2)"
+        send_discord "NIC Watchdog Test" "✅ Test OK: Can reach ping targets ($PING_TARGET_1 or $PING_TARGET_2)."
     else
-        logger -t nic-watchdog "Test: NIC $NIC CANNOT reach $PING_TARGET, attempting restart"
+        logger -t nic-watchdog "Test: CANNOT reach either $PING_TARGET_1 or $PING_TARGET_2, attempting restart"
         ip link set "$NIC" down
         sleep 2
         ip link set "$NIC" up
+        sleep 3  # Give the NIC time to come up
 
         # Re-test after restart
-        if ping -I "$NIC" -c 1 -W 2 "$PING_TARGET" > /dev/null 2>&1; then
-            logger -t nic-watchdog "Test: After restart, NIC $NIC can reach $PING_TARGET"
-            send_discord "NIC Watchdog Test" "⚠️ Test: NIC '$NIC' initially failed but works after restart."
+        if ping -c 1 -W 2 "$PING_TARGET_1" > /dev/null 2>&1 || ping -c 1 -W 2 "$PING_TARGET_2" > /dev/null 2>&1; then
+            logger -t nic-watchdog "Test: After restart, can reach ping targets"
+            send_discord "NIC Watchdog Test" "⚠️ Test: Initially failed but connectivity works after restarting NIC '$NIC'."
         else
-            logger -t nic-watchdog "Test: After restart, NIC $NIC still cannot reach $PING_TARGET"
-            send_discord "NIC Watchdog Test" "❌ Test FAILED: NIC '$NIC' still cannot reach $PING_TARGET even after restart."
+            logger -t nic-watchdog "Test: After restart, still cannot reach either target"
+            send_discord "NIC Watchdog Test" "❌ Test FAILED: Still cannot reach $PING_TARGET_1 or $PING_TARGET_2 even after restarting NIC '$NIC'."
         fi
     fi
 
     exit 0
 fi
 
-logger -t nic-watchdog "Starting NIC watchdog for $NIC (target $PING_TARGET)"
+logger -t nic-watchdog "Starting NIC watchdog for $NIC (targets: $PING_TARGET_1, $PING_TARGET_2)"
 
 while true; do
-    if ping -I "$NIC" -c 1 -W 2 "$PING_TARGET" > /dev/null 2>&1; then
-        # Success
+    # Check if at least one ping target is reachable
+    if ping -c 1 -W 2 "$PING_TARGET_1" > /dev/null 2>&1 || ping -c 1 -W 2 "$PING_TARGET_2" > /dev/null 2>&1; then
+        # Success - at least one target is reachable
         if [ $fails -gt 0 ]; then
-            logger -t nic-watchdog "✅ Connectivity restored on $NIC"
-            send_discord "NIC Watchdog" "✅ Connectivity restored on $NIC."
+            logger -t nic-watchdog "✅ Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)"
+            send_discord "NIC Watchdog" "✅ Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)."
         fi
         fails=0
         reboot_counter=0  # Reset reboot counter on success
     else
-        # Failure
+        # Failure - neither target is reachable
         fails=$((fails+1))
         reboot_counter=$((reboot_counter+1))
         if [ $fails -lt $FAIL_THRESHOLD ]; then
-            logger -t nic-watchdog "⚠️ Warning: ping to $PING_TARGET failed ($fails/$FAIL_THRESHOLD)"
+            logger -t nic-watchdog "⚠️ Warning: cannot reach $PING_TARGET_1 or $PING_TARGET_2 ($fails/$FAIL_THRESHOLD)"
         else
             logger -t nic-watchdog "❌ Restarting $NIC after $fails failed attempts"
             ip link set "$NIC" down
             sleep 2
             ip link set "$NIC" up
-            send_discord "NIC Watchdog Action: $NIC Restarted" "❌ The NIC '$NIC' was restarted after $fails failed pings to $PING_TARGET."
+            send_discord "NIC Watchdog Action: $NIC Restarted" "❌ The NIC '$NIC' was restarted after $fails failed pings (neither $PING_TARGET_1 nor $PING_TARGET_2 were reachable)."
             fails=0
         fi
         # --- New: reboot if NIC still down after 10 minutes ---
         if [ $reboot_counter -ge $REBOOT_THRESHOLD ]; then
             logger -t nic-watchdog "💥 NIC still down after 10 minutes, rebooting server"
+            send_discord "NIC Watchdog Critical" "💥 Server is rebooting because connectivity could not be restored after 10 minutes."
             reboot
         fi
     fi
