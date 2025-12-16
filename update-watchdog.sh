@@ -13,6 +13,7 @@ REPO_URL="https://raw.githubusercontent.com/Skulldorom/nic-watch-dog/main/nic-wa
 INSTALL_PATH="/usr/local/bin/nic-watchdog"
 SERVICE_NAME="nic-watchdog.service"
 TEMP_FILE="/tmp/nic-watchdog-update.sh"
+SERVICE_START_WAIT=2
 
 echo -e "${YELLOW}NIC Watchdog Update Script${NC}"
 echo "================================"
@@ -51,11 +52,19 @@ if [ ! -s "$TEMP_FILE" ]; then
     exit 1
 fi
 
+# Validate that it's a shell script
+if ! head -n 1 "$TEMP_FILE" | grep -q '^#!/bin/bash'; then
+    echo -e "${RED}Error: Downloaded file is not a valid bash script${NC}"
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+
 # Make it executable
 echo -e "${YELLOW}→ Making script executable...${NC}"
 chmod +x "$TEMP_FILE"
 
 # Backup existing version if it exists
+BACKUP_PATH=""
 if [ -f "$INSTALL_PATH" ]; then
     BACKUP_PATH="${INSTALL_PATH}.backup.$(date +%Y%m%d-%H%M%S)"
     echo -e "${YELLOW}→ Backing up existing version to ${BACKUP_PATH}${NC}"
@@ -70,11 +79,20 @@ mv "$TEMP_FILE" "$INSTALL_PATH"
 if [ "$SERVICE_RUNNING" = true ]; then
     echo -e "${YELLOW}→ Restarting ${SERVICE_NAME}...${NC}"
     systemctl start "$SERVICE_NAME"
-    sleep 2
+    sleep "$SERVICE_START_WAIT"
     if systemctl is-active --quiet "$SERVICE_NAME"; then
         echo -e "${GREEN}✓ Service restarted successfully${NC}"
     else
-        echo -e "${RED}✗ Service failed to start. Check logs with: journalctl -u ${SERVICE_NAME}${NC}"
+        echo -e "${RED}✗ Service failed to start. Rolling back to previous version...${NC}"
+        if [ -n "$BACKUP_PATH" ] && [ -f "$BACKUP_PATH" ]; then
+            cp "$BACKUP_PATH" "$INSTALL_PATH"
+            systemctl start "$SERVICE_NAME"
+            sleep "$SERVICE_START_WAIT"
+            if systemctl is-active --quiet "$SERVICE_NAME"; then
+                echo -e "${YELLOW}→ Previous version restored and service restarted${NC}"
+            fi
+        fi
+        echo -e "${RED}Update failed. Check logs with: journalctl -u ${SERVICE_NAME}${NC}"
         exit 1
     fi
 fi
