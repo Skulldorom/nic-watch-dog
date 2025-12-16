@@ -1,12 +1,36 @@
 #!/bin/bash
 # nic-watchdog.sh - auto recover NIC if it hangs & alert via Discord webhook
-NIC="eth0"
-PING_TARGET_1="8.8.8.8"         # Google DNS
-PING_TARGET_2="1.1.1.1"         # Cloudflare DNS
-FAIL_THRESHOLD=3
-SLEEP_INTERVAL=30
-# ==== CHANGE THIS: Put your Discord webhook here ====
-DISCORD_WEBHOOK=""
+
+# Default configuration values
+NIC="${NIC:-eth0}"
+PING_TARGET_1="${PING_TARGET_1:-8.8.8.8}"         # Google DNS
+PING_TARGET_2="${PING_TARGET_2:-1.1.1.1}"         # Cloudflare DNS
+FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
+SLEEP_INTERVAL="${SLEEP_INTERVAL:-30}"
+DISCORD_WEBHOOK="${DISCORD_WEBHOOK:-}"
+
+# Load configuration from .env file if it exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # Safely load .env file by filtering only valid variable assignments
+    # This prevents arbitrary code execution and ignores comments/empty lines
+    set -a
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip empty lines and comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        # Extract key and value (handle '=' in value by taking only first '=')
+        if [[ "$line" =~ ^([A-Z_][A-Z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            value="${BASH_REMATCH[2]}"
+            # Remove inline comments (not within quotes)
+            value=$(echo "$value" | sed 's/[[:space:]]*#.*//')
+            # Trim trailing whitespace using parameter expansion
+            value="${value%"${value##*[![:space:]]}"}"
+            export "$key=$value"
+        fi
+    done < "$SCRIPT_DIR/.env"
+    set +a
+fi
 
 send_discord() {
     local subject="$1"
@@ -89,7 +113,7 @@ while true; do
     if ping -c 1 -W 2 "$PING_TARGET_1" > /dev/null 2>&1 || ping -c 1 -W 2 "$PING_TARGET_2" > /dev/null 2>&1; then
         # Success - at least one target is reachable
         if [ $fails -gt 0 ]; then
-            logger -t nic-watchdog "✅ Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)"
+            logger -t nic-watchdog "Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)"
             send_discord "NIC Watchdog" "✅ Connectivity restored (can reach $PING_TARGET_1 or $PING_TARGET_2)."
         fi
         fails=0
@@ -99,9 +123,9 @@ while true; do
         fails=$((fails+1))
         reboot_counter=$((reboot_counter+1))
         if [ $fails -lt $FAIL_THRESHOLD ]; then
-            logger -t nic-watchdog "⚠️ Warning: cannot reach $PING_TARGET_1 or $PING_TARGET_2 ($fails/$FAIL_THRESHOLD)"
+            logger -t nic-watchdog "Warning: cannot reach $PING_TARGET_1 or $PING_TARGET_2 ($fails/$FAIL_THRESHOLD)"
         else
-            logger -t nic-watchdog "❌ Restarting $NIC after $fails failed attempts"
+            logger -t nic-watchdog "Restarting $NIC after $fails failed attempts"
             ip link set "$NIC" down
             sleep 2
             ip link set "$NIC" up
@@ -110,7 +134,7 @@ while true; do
         fi
         # --- New: reboot if NIC still down after 10 minutes ---
         if [ $reboot_counter -ge $REBOOT_THRESHOLD ]; then
-            logger -t nic-watchdog "💥 NIC still down after 10 minutes, rebooting server"
+            logger -t nic-watchdog "CRITICAL: NIC still down after 10 minutes, rebooting server"
             send_discord "NIC Watchdog Critical" "💥 Server is rebooting because connectivity could not be restored after 10 minutes."
             reboot
         fi
