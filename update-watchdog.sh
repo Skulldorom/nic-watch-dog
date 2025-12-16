@@ -71,14 +71,6 @@ fi
 echo -e "${YELLOW}→ Making script executable...${NC}"
 chmod +x "$TEMP_FILE"
 
-# Backup existing version if it exists
-BACKUP_PATH=""
-if [ -f "$INSTALL_PATH" ]; then
-    BACKUP_PATH="${INSTALL_PATH}.backup.$(date +%Y%m%d-%H%M%S)"
-    echo -e "${YELLOW}→ Backing up existing version to ${BACKUP_PATH}${NC}"
-    cp "$INSTALL_PATH" "$BACKUP_PATH"
-fi
-
 # Install the new version
 echo -e "${YELLOW}→ Installing to ${INSTALL_PATH}...${NC}"
 mv "$TEMP_FILE" "$INSTALL_PATH"
