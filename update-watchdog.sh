@@ -61,7 +61,7 @@ if [ ! -s "$TEMP_FILE" ]; then
 fi
 
 # Validate that it's a shell script
-if ! head -n 1 "$TEMP_FILE" | grep -q '^#!/.*bash'; then
+if ! head -n 1 "$TEMP_FILE" | grep -qE '^#!.*bash$'; then
     echo -e "${RED}Error: Downloaded file is not a valid bash script${NC}"
     rm -f "$TEMP_FILE"
     exit 1
@@ -97,7 +97,7 @@ if [ "$SERVICE_RUNNING" = true ]; then
             systemctl start "$SERVICE_NAME"
             sleep "$SERVICE_START_WAIT"
             if systemctl is-active --quiet "$SERVICE_NAME"; then
-                echo -e "${YELLOW}✓ Previous version restored and service restarted successfully${NC}"
+                echo -e "${GREEN}✓ Rollback successful: Previous version restored and service running${NC}"
                 echo -e "${RED}Update failed due to new version issues. Check logs with: journalctl -u ${SERVICE_NAME}${NC}"
             else
                 echo -e "${RED}✗ Critical: Rollback failed! Service could not be restarted with previous version${NC}"
