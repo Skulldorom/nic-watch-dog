@@ -111,6 +111,7 @@ Press `Ctrl+C` to stop it.
 1. **Create a systemd service file:**
    ```bash
    sudo nano /etc/systemd/system/nic-watchdog.service
+   # Or use your preferred editor: vi, vim, etc.
    ```
 
 2. **Add the following content:**
@@ -162,6 +163,7 @@ Add this line to run the watchdog every minute (only starts if not already runni
 Create the wrapper script:
 ```bash
 sudo nano /usr/local/bin/nic-watchdog-wrapper.sh
+# Or use your preferred editor: vi, vim, etc.
 ```
 
 ```bash
